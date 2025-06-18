@@ -1,0 +1,180 @@
+import React, { useState, useEffect } from 'react';
+import { Calculator, Copy, RotateCcw } from 'lucide-react';
+import { calculateReadabilityMetrics } from '../utils/readabilityCalculator';
+import ResultsDisplay from './ResultsDisplay';
+import { ReadabilityMetrics } from '../types/readability';
+
+const sampleText = 
+`The quick brown fox jumps over the lazy dog. This is a simple sentence to demonstrate text analysis. 
+Readability metrics help writers understand how easy or difficult their text is to read. 
+They consider factors like sentence length, word complexity, and syllable count. 
+By analyzing these elements, authors can adjust their writing to better reach their target audience.`;
+
+const TextAnalyzer: React.FC = () => {
+  const [text, setText] = useState(sampleText);
+  const [metrics, setMetrics] = useState<ReadabilityMetrics | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [history, setHistory] = useState<Array<{text: string, metrics: ReadabilityMetrics}>>([]);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (text.trim()) {
+      analyzeText();
+    }
+  }, []);
+
+  const analyzeText = () => {
+    if (!text.trim()) return;
+    
+    setIsAnalyzing(true);
+    
+    // Simulate processing time for better UX
+    setTimeout(() => {
+      const results = calculateReadabilityMetrics(text);
+      setMetrics(results);
+      
+      // Add to history if not already there
+      const existingEntry = history.find(entry => entry.text === text);
+      if (!existingEntry) {
+        setHistory(prev => [...prev, { text, metrics: results }].slice(-5)); // Keep last 5
+      }
+      
+      setIsAnalyzing(false);
+    }, 600);
+  };
+
+  const handleClear = () => {
+    setText('');
+    setMetrics(null);
+  };
+
+  const handleCopy = () => {
+    if (!metrics) return;
+    
+    const resultsText = [
+      `Text Readability Analysis Results:`,
+      `- Gunning Fog: ${metrics.gunningFog.toFixed(1)} (${getReadabilityLevel(metrics.gunningFog)})`,
+      `- Flesch Reading Ease: ${metrics.fleschReadingEase.toFixed(1)} (${getFleschReadingEaseLevel(metrics.fleschReadingEase)})`,
+      `- Flesch-Kincaid Grade: ${metrics.fleschKincaidGrade.toFixed(1)}`,
+      `- SMOG Index: ${metrics.smogIndex.toFixed(1)}`,
+      `- Coleman-Liau Index: ${metrics.colemanLiauIndex.toFixed(1)}`,
+      `- Automated Readability Index: ${metrics.automatedReadabilityIndex.toFixed(1)}`,
+      `- Dale-Chall Score: ${metrics.daleChallReadabilityScore.toFixed(1)}`,
+      `- Linsear Write Formula: ${metrics.linsearWriteFormula.toFixed(1)}`,
+      `- Difficult Words: ${metrics.difficultWords}`,
+      `\nAnalyzed by ReadabilityMetrics`
+    ].join('\n');
+    
+    navigator.clipboard.writeText(resultsText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  
+  const getReadabilityLevel = (score: number): string => {
+    if (score < 8) return 'Easy';
+    if (score < 12) return 'Average';
+    if (score < 17) return 'Difficult';
+    return 'Very Difficult';
+  };
+  
+  const getFleschReadingEaseLevel = (score: number): string => {
+    if (score >= 90) return 'Very Easy';
+    if (score >= 80) return 'Easy';
+    if (score >= 70) return 'Fairly Easy';
+    if (score >= 60) return 'Standard';
+    if (score >= 50) return 'Fairly Difficult';
+    if (score >= 30) return 'Difficult';
+    return 'Very Confusing';
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Text Readability Analyzer</h2>
+          
+          <div className="mb-6">
+            <label htmlFor="text-input" className="block text-sm font-medium text-gray-700 mb-2">
+              Enter or paste your text
+            </label>
+            <textarea
+              id="text-input"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="w-full h-48 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              placeholder="Enter your text here to analyze its readability..."
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button
+              onClick={analyzeText}
+              disabled={!text.trim() || isAnalyzing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-white ${
+                !text.trim() || isAnalyzing 
+                  ? 'bg-blue-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } transition-colors`}
+            >
+              <Calculator className="h-4 w-4" />
+              {isAnalyzing ? 'Analyzing...' : 'Analyze Text'}
+            </button>
+            
+            <button
+              onClick={handleClear}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Clear
+            </button>
+            
+            {metrics && (
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors ml-auto"
+              >
+                <Copy className="h-4 w-4" />
+                {copied ? 'Copied!' : 'Copy Results'}
+              </button>
+            )}
+          </div>
+          
+          {metrics && <ResultsDisplay metrics={metrics} />}
+        </div>
+      </div>
+      
+      {history.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Recent Analyses</h3>
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <ul className="divide-y divide-gray-200">
+              {history.map((entry, index) => (
+                <li 
+                  key={index} 
+                  className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => setText(entry.text)}
+                >
+                  <p className="text-sm text-gray-600 line-clamp-1">{entry.text}</p>
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                      Gunning Fog: {entry.metrics.gunningFog.toFixed(1)}
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                      Flesch: {entry.metrics.fleschReadingEase.toFixed(1)}
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                      Grade: {entry.metrics.fleschKincaidGrade.toFixed(1)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TextAnalyzer;
