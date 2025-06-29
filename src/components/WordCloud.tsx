@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import cloud from 'd3-cloud';
 import { scaleOrdinal } from 'd3-scale';
-import { schemeCategory10 } from 'd3-scale-chromatic';
+import { schemeCategory10, schemeCategory20, schemeBlues, schemeGreens, schemeWarm } from 'd3-scale-chromatic';
 import { RefreshCw, Download } from 'lucide-react';
 
 interface WordCloudProps {
   text: string;
+  maxWords?: number;
+  minFreq?: number;
+  colorScheme?: string;
+  excludeStopWords?: boolean;
 }
 
 interface WordData {
@@ -16,14 +20,30 @@ interface WordData {
   rotate?: number;
 }
 
-const WordCloud: React.FC<WordCloudProps> = ({ text }) => {
+const WordCloud: React.FC<WordCloudProps> = ({ 
+  text, 
+  maxWords = 50, 
+  minFreq = 3, 
+  colorScheme = 'category10',
+  excludeStopWords = true 
+}) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [words, setWords] = useState<WordData[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [minWords, setMinWords] = useState(3);
-  const [maxWords, setMaxWords] = useState(50);
+  const [localMinWords, setLocalMinWords] = useState(minFreq);
+  const [localMaxWords, setLocalMaxWords] = useState(maxWords);
 
-  const colorScale = scaleOrdinal(schemeCategory10);
+  const getColorScale = (scheme: string) => {
+    switch (scheme) {
+      case 'category20': return scaleOrdinal(schemeCategory20);
+      case 'blues': return scaleOrdinal(schemeBlues[9]);
+      case 'greens': return scaleOrdinal(schemeGreens[9]);
+      case 'warm': return scaleOrdinal(schemeWarm[9]);
+      default: return scaleOrdinal(schemeCategory10);
+    }
+  };
+
+  const colorScale = getColorScale(colorScheme);
 
   const generateWordFrequency = (inputText: string): WordData[] => {
     // Clean and split text into words
@@ -41,16 +61,20 @@ const WordCloud: React.FC<WordCloudProps> = ({ text }) => {
       wordCount[word] = (wordCount[word] || 0) + 1;
     });
 
-    // Filter out common stop words
-    const stopWords = new Set([
-      'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'
-    ]);
+    // Filter out common stop words if enabled
+    let stopWords = new Set<string>();
+    if (excludeStopWords) {
+      stopWords = new Set([
+        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use',
+        'que', 'para', 'com', 'uma', 'por', 'dos', 'das', 'como', 'mais', 'ser', 'ter', 'seu', 'sua', 'seus', 'suas', 'isso', 'isso', 'este', 'esta', 'estes', 'estas', 'esse', 'essa', 'esses', 'essas'
+      ]);
+    }
 
     // Convert to array and filter
     const wordArray = Object.entries(wordCount)
-      .filter(([word, count]) => !stopWords.has(word) && count >= minWords)
+      .filter(([word, count]) => !stopWords.has(word) && count >= localMinWords)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, maxWords)
+      .slice(0, localMaxWords)
       .map(([word, count]) => ({
         text: word,
         size: Math.max(12, Math.min(60, count * 8))
@@ -118,7 +142,7 @@ const WordCloud: React.FC<WordCloudProps> = ({ text }) => {
     if (text.trim()) {
       generateWordCloud();
     }
-  }, [text, minWords, maxWords]);
+  }, [text, localMinWords, localMaxWords, colorScheme, excludeStopWords]);
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -156,8 +180,8 @@ const WordCloud: React.FC<WordCloudProps> = ({ text }) => {
               type="number"
               min="1"
               max="10"
-              value={minWords}
-              onChange={(e) => setMinWords(parseInt(e.target.value))}
+              value={localMinWords}
+              onChange={(e) => setLocalMinWords(parseInt(e.target.value))}
               className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -170,8 +194,8 @@ const WordCloud: React.FC<WordCloudProps> = ({ text }) => {
               type="number"
               min="10"
               max="100"
-              value={maxWords}
-              onChange={(e) => setMaxWords(parseInt(e.target.value))}
+              value={localMaxWords}
+              onChange={(e) => setLocalMaxWords(parseInt(e.target.value))}
               className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

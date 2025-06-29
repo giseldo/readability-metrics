@@ -5,14 +5,36 @@ import ResultsDisplay from './ResultsDisplay';
 import WordCloud from './WordCloud';
 import { ReadabilityMetrics } from '../types/readability';
 
-const sampleText = 
+interface SettingsConfig {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: 'small' | 'medium' | 'large';
+  colorScheme: 'blue' | 'green' | 'purple' | 'orange';
+  autoAnalyze: boolean;
+  analysisDelay: number;
+  showAdvancedMetrics: boolean;
+  defaultSampleText: string;
+  wordCloudMaxWords: number;
+  wordCloudMinFreq: number;
+  wordCloudColors: string;
+  excludeStopWords: boolean;
+  exportFormat: 'json' | 'csv' | 'txt';
+  includeStatistics: boolean;
+  showNotifications: boolean;
+  notifyOnComplete: boolean;
+}
+
+interface TextAnalyzerProps {
+  settings?: SettingsConfig | null;
+}
+
+const defaultSampleText = 
 `The quick brown fox jumps over the lazy dog. This is a simple sentence to demonstrate text analysis. 
 Readability metrics help writers understand how easy or difficult their text is to read. 
 They consider factors like sentence length, word complexity, and syllable count. 
 By analyzing these elements, authors can adjust their writing to better reach their target audience.`;
 
-const TextAnalyzer: React.FC = () => {
-  const [text, setText] = useState(sampleText);
+const TextAnalyzer: React.FC<TextAnalyzerProps> = ({ settings }) => {
+  const [text, setText] = useState(settings?.defaultSampleText || defaultSampleText);
   const [metrics, setMetrics] = useState<ReadabilityMetrics | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [history, setHistory] = useState<Array<{text: string, metrics: ReadabilityMetrics}>>([]);
@@ -21,6 +43,17 @@ const TextAnalyzer: React.FC = () => {
 
   useEffect(() => {
     if (text.trim()) {
+      if (settings?.autoAnalyze) {
+        const timeoutId = setTimeout(() => {
+          analyzeText();
+        }, settings.analysisDelay || 500);
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [text, settings?.autoAnalyze, settings?.analysisDelay]);
+
+  useEffect(() => {
+    if (text.trim() && !settings?.autoAnalyze) {
       analyzeText();
     }
   }, []);
@@ -42,6 +75,17 @@ const TextAnalyzer: React.FC = () => {
       }
       
       setIsAnalyzing(false);
+      
+      // Show completion notification if enabled
+      if (settings?.notifyOnComplete && settings?.showNotifications) {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-lg z-50 transition-all';
+        notification.textContent = 'Análise concluída!';
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.remove();
+        }, 3000);
+      }
     }, 600);
   };
 
@@ -53,19 +97,54 @@ const TextAnalyzer: React.FC = () => {
   const handleCopy = () => {
     if (!metrics) return;
     
-    const resultsText = [
-      `Text Readability Analysis Results:`,
-      `- Gunning Fog: ${metrics.gunningFog.toFixed(1)} (${getReadabilityLevel(metrics.gunningFog)})`,
-      `- Flesch Reading Ease: ${metrics.fleschReadingEase.toFixed(1)} (${getFleschReadingEaseLevel(metrics.fleschReadingEase)})`,
-      `- Flesch-Kincaid Grade: ${metrics.fleschKincaidGrade.toFixed(1)}`,
-      `- SMOG Index: ${metrics.smogIndex.toFixed(1)}`,
-      `- Coleman-Liau Index: ${metrics.colemanLiauIndex.toFixed(1)}`,
-      `- Automated Readability Index: ${metrics.automatedReadabilityIndex.toFixed(1)}`,
-      `- Dale-Chall Score: ${metrics.daleChallReadabilityScore.toFixed(1)}`,
-      `- Linsear Write Formula: ${metrics.linsearWriteFormula.toFixed(1)}`,
-      `- Difficult Words: ${metrics.difficultWords}`,
-      `\nAnalyzed by ReadabilityMetrics`
-    ].join('\n');
+    const format = settings?.exportFormat || 'json';
+    let resultsText = '';
+    
+    if (format === 'json') {
+      const exportData = {
+        text: text.substring(0, 100) + '...',
+        metrics,
+        timestamp: new Date().toISOString(),
+        ...(settings?.includeStatistics && {
+          statistics: {
+            avgWordsPerSentence: metrics.wordCount / metrics.sentenceCount,
+            avgSyllablesPerWord: metrics.syllableCount / metrics.wordCount,
+            complexWordPercentage: (metrics.difficultWords / metrics.wordCount) * 100
+          }
+        })
+      };
+      resultsText = JSON.stringify(exportData, null, 2);
+    } else if (format === 'csv') {
+      resultsText = [
+        'Metric,Value',
+        `Gunning Fog,${metrics.gunningFog.toFixed(1)}`,
+        `Flesch Reading Ease,${metrics.fleschReadingEase.toFixed(1)}`,
+        `Flesch-Kincaid Grade,${metrics.fleschKincaidGrade.toFixed(1)}`,
+        `SMOG Index,${metrics.smogIndex.toFixed(1)}`,
+        `Coleman-Liau Index,${metrics.colemanLiauIndex.toFixed(1)}`,
+        `Automated Readability Index,${metrics.automatedReadabilityIndex.toFixed(1)}`,
+        `Dale-Chall Score,${metrics.daleChallReadabilityScore.toFixed(1)}`,
+        `Linsear Write Formula,${metrics.linsearWriteFormula.toFixed(1)}`,
+        `Difficult Words,${metrics.difficultWords}`,
+        `Word Count,${metrics.wordCount}`,
+        `Sentence Count,${metrics.sentenceCount}`,
+        `Syllable Count,${metrics.syllableCount}`
+      ].join('\n');
+    } else {
+      resultsText = [
+        `Resultados da Análise de Legibilidade:`,
+        `- Gunning Fog: ${metrics.gunningFog.toFixed(1)} (${getReadabilityLevel(metrics.gunningFog)})`,
+        `- Flesch Reading Ease: ${metrics.fleschReadingEase.toFixed(1)} (${getFleschReadingEaseLevel(metrics.fleschReadingEase)})`,
+        `- Flesch-Kincaid Grade: ${metrics.fleschKincaidGrade.toFixed(1)}`,
+        `- SMOG Index: ${metrics.smogIndex.toFixed(1)}`,
+        `- Coleman-Liau Index: ${metrics.colemanLiauIndex.toFixed(1)}`,
+        `- Automated Readability Index: ${metrics.automatedReadabilityIndex.toFixed(1)}`,
+        `- Dale-Chall Score: ${metrics.daleChallReadabilityScore.toFixed(1)}`,
+        `- Linsear Write Formula: ${metrics.linsearWriteFormula.toFixed(1)}`,
+        `- Difficult Words: ${metrics.difficultWords}`,
+        `\nAnalisado por Analisador de Legibilidade`
+      ].join('\n');
+    }
     
     navigator.clipboard.writeText(resultsText).then(() => {
       setCopied(true);
@@ -74,20 +153,20 @@ const TextAnalyzer: React.FC = () => {
   };
   
   const getReadabilityLevel = (score: number): string => {
-    if (score < 8) return 'Easy';
-    if (score < 12) return 'Average';
-    if (score < 17) return 'Difficult';
-    return 'Very Difficult';
+    if (score < 8) return 'Fácil';
+    if (score < 12) return 'Médio';
+    if (score < 17) return 'Difícil';
+    return 'Muito Difícil';
   };
   
   const getFleschReadingEaseLevel = (score: number): string => {
-    if (score >= 90) return 'Very Easy';
-    if (score >= 80) return 'Easy';
-    if (score >= 70) return 'Fairly Easy';
-    if (score >= 60) return 'Standard';
-    if (score >= 50) return 'Fairly Difficult';
-    if (score >= 30) return 'Difficult';
-    return 'Very Confusing';
+    if (score >= 90) return 'Muito Fácil';
+    if (score >= 80) return 'Fácil';
+    if (score >= 70) return 'Razoavelmente Fácil';
+    if (score >= 60) return 'Padrão';
+    if (score >= 50) return 'Razoavelmente Difícil';
+    if (score >= 30) return 'Difícil';
+    return 'Muito Confuso';
   };
 
   return (
@@ -110,18 +189,20 @@ const TextAnalyzer: React.FC = () => {
           </div>
           
           <div className="flex flex-wrap gap-3 mb-6">
-            <button
-              onClick={analyzeText}
-              disabled={!text.trim() || isAnalyzing}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-white ${
-                !text.trim() || isAnalyzing 
-                  ? 'bg-blue-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } transition-colors`}
-            >
-              <Calculator className="h-4 w-4" />
-              {isAnalyzing ? 'Analisando...' : 'Analisar Texto'}
-            </button>
+            {!settings?.autoAnalyze && (
+              <button
+                onClick={analyzeText}
+                disabled={!text.trim() || isAnalyzing}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-white ${
+                  !text.trim() || isAnalyzing 
+                    ? 'bg-blue-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } transition-colors`}
+              >
+                <Calculator className="h-4 w-4" />
+                {isAnalyzing ? 'Analisando...' : 'Analisar Texto'}
+              </button>
+            )}
             
             <button
               onClick={handleClear}
@@ -137,7 +218,7 @@ const TextAnalyzer: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors ml-auto"
               >
                 <Copy className="h-4 w-4" />
-                {copied ? 'Copiado!' : 'Copiar Resultados'}
+                {copied ? 'Copiado!' : `Copiar (${settings?.exportFormat?.toUpperCase() || 'JSON'})`}
               </button>
             )}
           </div>
@@ -179,8 +260,21 @@ const TextAnalyzer: React.FC = () => {
           )}
 
           {/* Tab Content */}
-          {activeTab === 'metrics' && metrics && <ResultsDisplay metrics={metrics} />}
-          {activeTab === 'wordcloud' && text.trim() && <WordCloud text={text} />}
+          {activeTab === 'metrics' && metrics && (
+            <ResultsDisplay 
+              metrics={metrics} 
+              showAdvanced={settings?.showAdvancedMetrics !== false}
+            />
+          )}
+          {activeTab === 'wordcloud' && text.trim() && (
+            <WordCloud 
+              text={text} 
+              maxWords={settings?.wordCloudMaxWords || 50}
+              minFreq={settings?.wordCloudMinFreq || 3}
+              colorScheme={settings?.wordCloudColors || 'category10'}
+              excludeStopWords={settings?.excludeStopWords !== false}
+            />
+          )}
         </div>
       </div>
       
