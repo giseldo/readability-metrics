@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import cloud from 'd3-cloud';
 import { scaleOrdinal } from 'd3-scale';
-import { schemeCategory10, schemeCategory20, schemeBlues, schemeGreens, schemeWarm } from 'd3-scale-chromatic';
+import * as d3Chromatic from 'd3-scale-chromatic';
 import { RefreshCw, Download } from 'lucide-react';
 
 interface WordCloudProps {
@@ -35,11 +35,11 @@ const WordCloud: React.FC<WordCloudProps> = ({
 
   const getColorScale = (scheme: string) => {
     switch (scheme) {
-      case 'category20': return scaleOrdinal(schemeCategory20);
-      case 'blues': return scaleOrdinal(schemeBlues[9]);
-      case 'greens': return scaleOrdinal(schemeGreens[9]);
-      case 'warm': return scaleOrdinal(schemeWarm[9]);
-      default: return scaleOrdinal(schemeCategory10);
+      case 'category20': return scaleOrdinal(d3Chromatic.schemeCategory20);
+      case 'blues': return scaleOrdinal(d3Chromatic.schemeBlues[9]);
+      case 'greens': return scaleOrdinal(d3Chromatic.schemeGreens[9]);
+      case 'warm': return scaleOrdinal(d3Chromatic.schemeWarm[9]);
+      default: return scaleOrdinal(d3Chromatic.schemeCategory10);
     }
   };
 
