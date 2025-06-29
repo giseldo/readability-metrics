@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, Copy, RotateCcw } from 'lucide-react';
+import { Calculator, Copy, RotateCcw, Cloud } from 'lucide-react';
 import { calculateReadabilityMetrics } from '../utils/readabilityCalculator';
 import ResultsDisplay from './ResultsDisplay';
+import WordCloud from './WordCloud';
 import { ReadabilityMetrics } from '../types/readability';
 
 const sampleText = 
@@ -16,6 +17,7 @@ const TextAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [history, setHistory] = useState<Array<{text: string, metrics: ReadabilityMetrics}>>([]);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'metrics' | 'wordcloud'>('metrics');
 
   useEffect(() => {
     if (text.trim()) {
@@ -89,21 +91,21 @@ const TextAnalyzer: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <div className="bg-white rounded-lg shadow-md overflow-hidden transition-all">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Text Readability Analyzer</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Analisador de Legibilidade de Texto</h2>
           
           <div className="mb-6">
             <label htmlFor="text-input" className="block text-sm font-medium text-gray-700 mb-2">
-              Enter or paste your text
+              Digite ou cole seu texto
             </label>
             <textarea
               id="text-input"
               value={text}
               onChange={(e) => setText(e.target.value)}
               className="w-full h-48 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              placeholder="Enter your text here to analyze its readability..."
+              placeholder="Digite seu texto aqui para analisar sua legibilidade..."
             />
           </div>
           
@@ -118,7 +120,7 @@ const TextAnalyzer: React.FC = () => {
               } transition-colors`}
             >
               <Calculator className="h-4 w-4" />
-              {isAnalyzing ? 'Analyzing...' : 'Analyze Text'}
+              {isAnalyzing ? 'Analisando...' : 'Analisar Texto'}
             </button>
             
             <button
@@ -126,7 +128,7 @@ const TextAnalyzer: React.FC = () => {
               className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
             >
               <RotateCcw className="h-4 w-4" />
-              Clear
+              Limpar
             </button>
             
             {metrics && (
@@ -135,18 +137,56 @@ const TextAnalyzer: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors ml-auto"
               >
                 <Copy className="h-4 w-4" />
-                {copied ? 'Copied!' : 'Copy Results'}
+                {copied ? 'Copiado!' : 'Copiar Resultados'}
               </button>
             )}
           </div>
-          
-          {metrics && <ResultsDisplay metrics={metrics} />}
+
+          {/* Tab Navigation */}
+          {text.trim() && (
+            <div className="mb-6">
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('metrics')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'metrics'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      Métricas de Legibilidade
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('wordcloud')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'wordcloud'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Cloud className="h-4 w-4" />
+                      Nuvem de Palavras
+                    </div>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content */}
+          {activeTab === 'metrics' && metrics && <ResultsDisplay metrics={metrics} />}
+          {activeTab === 'wordcloud' && text.trim() && <WordCloud text={text} />}
         </div>
       </div>
       
       {history.length > 0 && (
         <div className="mt-8">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Recent Analyses</h3>
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Análises Recentes</h3>
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <ul className="divide-y divide-gray-200">
               {history.map((entry, index) => (
@@ -164,7 +204,7 @@ const TextAnalyzer: React.FC = () => {
                       Flesch: {entry.metrics.fleschReadingEase.toFixed(1)}
                     </span>
                     <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                      Grade: {entry.metrics.fleschKincaidGrade.toFixed(1)}
+                      Nível: {entry.metrics.fleschKincaidGrade.toFixed(1)}
                     </span>
                   </div>
                 </li>

@@ -7,18 +7,18 @@ const Footer: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <p className="text-sm">
-              © {new Date().getFullYear()} ReadabilityMetrics. All rights reserved.
+              © {new Date().getFullYear()} Analisador de Legibilidade. Todos os direitos reservados.
             </p>
           </div>
           <div className="flex gap-4">
             <a href="#" className="text-gray-300 hover:text-white transition-colors">
-              Privacy Policy
+              Política de Privacidade
             </a>
             <a href="#" className="text-gray-300 hover:text-white transition-colors">
-              Terms of Service
+              Termos de Serviço
             </a>
             <a href="#" className="text-gray-300 hover:text-white transition-colors">
-              Contact
+              Contato
             </a>
           </div>
         </div>
